@@ -13,6 +13,10 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 5. it did not fix, when i move forward it switches to have a gray first few rows (included screenshot)
 
-6.great, now can i have a high score for this session, you can reset it whenever the screen reloads for now. update this when the user beats it. also now can you now make a game over screen for when i die (even though theres no way to die yet) and from that screen it should say "current score: ##" new line "high score: ##" new line "press any key to restart" from that screen when they press any screen it should restart them with a score of 0
+6. great, now can i have a high score for this session, you can reset it whenever the screen reloads for now. update this when the user beats it. also now can you now make a game over screen for when i die (even though theres no way to die yet) and from that screen it should say "current score: ##" new line "high score: ##" new line "press any key to restart" from that screen when they press any screen it should restart them with a score of 0
 
-7. 
+7. awesome, now instead of random colors meaning nothing, can you make it so the blue is water and when stepped on, you die. and i want the grey to be rocks, so you cannot stand on that block, meaning if you are behind it and you try to move into it you stay on the same square
+
+8. great, now can you make it not randomly generated as 1x1s, meaning whenever there is water, the water should make a river from left all the way right. also i make it so rocks can not form around spawn (there should always be atleast one grass block to the left, right, or infront of the spawn block) and there is always at least 1 grass block in a row
+
+9. 

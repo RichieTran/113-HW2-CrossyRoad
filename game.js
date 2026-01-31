@@ -40,50 +40,73 @@ function getTileAt(x, y) {
 
 // Initialize the grid with random tiles
 function initializeGrid() {
-    // Generate tiles from camera position to well ahead of player
     const cameraY = game.player.y - config.tilesAhead;
     const startRow = cameraY;
     const endRow = game.player.y + config.tilesAhead;
 
     for (let row = startRow; row <= endRow; row++) {
+        generateNewRow(row);
+    }
+}
+
+// Pick a row type: 'water' makes a full river, 'land' is a grass/rock mix
+function getRandomRowType() {
+    // ~20% chance of water river row
+    return Math.random() < 0.2 ? 'water' : 'land';
+}
+
+// Generate a new row of tiles
+function generateNewRow(rowY) {
+    const spawnX = Math.floor(config.gridWidth / 2);
+    const isSpawnRow = (rowY === 0);
+    const isAdjacentToSpawn = (rowY === -1 || rowY === 1);
+
+    // Spawn row and adjacent rows are always land (no rivers near spawn)
+    const rowType = (isSpawnRow || isAdjacentToSpawn) ? 'land' : getRandomRowType();
+
+    if (rowType === 'water') {
+        // Full river across the entire row
+        const waterType = tileTypes.find(t => t.name === 'water');
         for (let col = 0; col < config.gridWidth; col++) {
-            // Ensure player spawn tile is grass
-            const isSpawn = (row === 0 && col === Math.floor(config.gridWidth / 2));
-            const tileType = isSpawn ? tileTypes[0] : getRandomTileType();
             game.tiles.push({
-                x: col,
-                y: row,
-                type: tileType.name,
-                color: tileType.color
+                x: col, y: rowY,
+                type: waterType.name, color: waterType.color
             });
         }
-    }
-}
+    } else {
+        // Land row: mix of grass and rock, guaranteed at least 1 grass
+        const grassType = tileTypes.find(t => t.name === 'grass');
+        const rockType = tileTypes.find(t => t.name === 'rock');
 
-// Get random tile type based on weights
-function getRandomTileType() {
-    const totalWeight = tileTypes.reduce((sum, type) => sum + type.weight, 0);
-    let random = Math.random() * totalWeight;
-
-    for (const type of tileTypes) {
-        random -= type.weight;
-        if (random <= 0) {
-            return type;
+        // Build array of tile types for this row
+        const row = [];
+        for (let col = 0; col < config.gridWidth; col++) {
+            // ~35% chance of rock on a land row
+            row.push(Math.random() < 0.35 ? 'rock' : 'grass');
         }
-    }
-    return tileTypes[0];
-}
 
-// Generate new row of tiles ahead
-function generateNewRow(rowY) {
-    for (let col = 0; col < config.gridWidth; col++) {
-        const tileType = getRandomTileType();
-        game.tiles.push({
-            x: col,
-            y: rowY,
-            type: tileType.name,
-            color: tileType.color
-        });
+        // Guarantee at least 1 grass tile: pick a random column and force it
+        if (!row.includes('grass')) {
+            row[Math.floor(Math.random() * config.gridWidth)] = 'grass';
+        }
+
+        // Spawn safety: ensure spawn tile and at least one neighbor (left, right, forward) are grass
+        if (isSpawnRow) {
+            row[spawnX] = 'grass';
+            if (spawnX > 0) row[spawnX - 1] = 'grass';
+            if (spawnX < config.gridWidth - 1) row[spawnX + 1] = 'grass';
+        }
+        if (isAdjacentToSpawn) {
+            row[spawnX] = 'grass';
+        }
+
+        for (let col = 0; col < config.gridWidth; col++) {
+            const tileType = row[col] === 'rock' ? rockType : grassType;
+            game.tiles.push({
+                x: col, y: rowY,
+                type: tileType.name, color: tileType.color
+            });
+        }
     }
 }
 
@@ -192,6 +215,9 @@ document.addEventListener('keydown', (e) => {
         keys.moved = true;
     } else if (e.key === 'ArrowUp' && !keys.moved) {
         movePlayer(0, -1);  // Negative Y is forward
+        keys.moved = true;
+    } else if (e.key === 'ArrowDown' && !keys.moved) {
+        movePlayer(0, 1);  // Positive Y is backward
         keys.moved = true;
     }
 });
