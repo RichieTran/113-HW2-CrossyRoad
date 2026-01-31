@@ -80,8 +80,11 @@ function generateNewRow(rowY) {
     const isSpawnRow = (rowY === 0);
     const isAdjacentToSpawn = (rowY === -1);
 
-    // Spawn row and adjacent rows are always land (no rivers near spawn)
-    const rowType = (isSpawnRow || isAdjacentToSpawn) ? 'land' : getRandomRowType();
+    // Prevent consecutive water rows — check if the row behind (rowY+1) is water
+    const prevRowIsWater = game.tiles.some(t => t.y === rowY + 1 && t.type === 'water');
+
+    // Spawn row and adjacent rows are always land; no back-to-back water rows
+    const rowType = (isSpawnRow || isAdjacentToSpawn || prevRowIsWater) ? 'land' : getRandomRowType();
 
     if (rowType === 'water') {
         // Full river across the entire row
@@ -127,16 +130,38 @@ function generateNewRow(rowY) {
             row[Math.floor(Math.random() * config.gridWidth)] = 'grass';
         }
 
-        // Ensure at least one grass tile connects to a grass tile in the previous row (row behind = rowY+1)
+        // Find the nearest land row behind this one (skip over water rows)
+        // to ensure grass connectivity. Players cross water via logs and can
+        // land at any column, so after water we need wide grass coverage.
+        let lookbackY = rowY + 1;
+        while (lookbackY <= rowY + 5) {
+            const hasTiles = game.tiles.some(t => t.y === lookbackY);
+            if (!hasTiles) break;
+            const isWater = game.tiles.some(t => t.y === lookbackY && t.type === 'water');
+            if (!isWater) break;
+            lookbackY++;
+        }
+
         const prevRowGrass = game.tiles
-            .filter(t => t.y === rowY + 1 && t.type === 'grass')
+            .filter(t => t.y === lookbackY && t.type === 'grass')
             .map(t => t.x);
-        if (prevRowGrass.length > 0) {
-            const hasConnection = prevRowGrass.some(col => row[col] === 'grass');
-            if (!hasConnection) {
-                // Force a random connected column to grass
-                const col = prevRowGrass[Math.floor(Math.random() * prevRowGrass.length)];
-                row[col] = 'grass';
+
+        if (lookbackY !== rowY + 1) {
+            // This land row follows a water row — player could land anywhere from a log.
+            // Ensure every grass tile from the last land row has a forward path,
+            // and also spread extra grass so logs can drop the player safely.
+            for (const prevCol of prevRowGrass) {
+                row[prevCol] = 'grass';
+            }
+        } else {
+            // Normal land-to-land: ensure every grass tile has a reachable neighbor
+            for (const prevCol of prevRowGrass) {
+                const neighbors = [prevCol - 1, prevCol, prevCol + 1]
+                    .filter(c => c >= 0 && c < config.gridWidth);
+                const hasPath = neighbors.some(c => row[c] === 'grass');
+                if (!hasPath) {
+                    row[prevCol] = 'grass';
+                }
             }
         }
 

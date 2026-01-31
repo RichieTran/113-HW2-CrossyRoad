@@ -27,4 +27,10 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 12. it seems that some random rock formations, trap me in, can you make it so there is atleast one grass path that directly connects to a grass of the previous row for every row
 
-13.
+13. can you make my character move the same as the log, and when moving forward onto grass, choose the grass block that the majority of my player is on
+
+14. i am trapped here, fix this please (included screenshot)
+
+15. still trapped in this situation (included screenshot)
+
+16.
