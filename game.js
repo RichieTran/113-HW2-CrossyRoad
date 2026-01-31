@@ -25,7 +25,9 @@ let game = {
     highestRow: 0,
     tiles: [],
     logs: [],        // { x: float, y: int, width: int, direction: 1|-1, speed: float }
+    cars: [],        // { x: float, y: int, width: int, direction: 1|-1, speed: float }
     waterRows: {},   // rowY -> { direction, speed } metadata
+    roadRows: {},    // rowY -> { direction, speed } metadata
     gameOver: false
 };
 
@@ -100,6 +102,24 @@ function generateNewRow(rowY) {
                 type: roadType.name, color: roadType.color
             });
         }
+
+        // Spawn cars for this road row
+        const direction = Math.random() < 0.5 ? 1 : -1;
+        const speed = 0.02 + Math.random() * 0.03;
+        game.roadRows[rowY] = { direction, speed };
+
+        const carCount = 2 + Math.floor(Math.random() * 3); // 2, 3, or 4
+        const spacing = config.gridWidth / carCount;
+        for (let i = 0; i < carCount; i++) {
+            const carWidth = 2 + Math.floor(Math.random() * 2); // 2 or 3 tiles wide
+            game.cars.push({
+                x: Math.floor(spacing * i + Math.random() * (spacing - carWidth)),
+                y: rowY,
+                width: carWidth,
+                direction,
+                speed
+            });
+        }
     } else if (rowType === 'water') {
         // Full river across the entire row
         const waterType = tileTypes.find(t => t.name === 'water');
@@ -137,6 +157,20 @@ function generateNewRow(rowY) {
         for (let col = 0; col < config.gridWidth; col++) {
             // ~35% chance of rock on a land row
             row.push(Math.random() < 0.35 ? 'rock' : 'grass');
+        }
+
+        // Break up rock streaks longer than 3 consecutive
+        let streak = 0;
+        for (let col = 0; col < config.gridWidth; col++) {
+            if (row[col] === 'rock') {
+                streak++;
+                if (streak > 3) {
+                    row[col] = 'grass';
+                    streak = 0;
+                }
+            } else {
+                streak = 0;
+            }
         }
 
         // Guarantee at least 1 grass tile: pick a random column and force it
@@ -204,9 +238,13 @@ function removeOldTiles() {
     const maxRow = game.player.y + config.tilesBehind + 2;
     game.tiles = game.tiles.filter(tile => tile.y <= maxRow);
     game.logs = game.logs.filter(log => log.y <= maxRow);
-    // Clean up waterRows metadata
+    game.cars = game.cars.filter(car => car.y <= maxRow);
+    // Clean up waterRows/roadRows metadata
     for (const rowY in game.waterRows) {
         if (Number(rowY) > maxRow) delete game.waterRows[rowY];
+    }
+    for (const rowY in game.roadRows) {
+        if (Number(rowY) > maxRow) delete game.roadRows[rowY];
     }
 }
 
@@ -218,6 +256,40 @@ function getLogUnderPlayer() {
                px > log.x &&
                px < log.x + log.width;
     });
+}
+
+// Check if the player is overlapping a car
+function getCarHittingPlayer() {
+    const px = game.player.x + 0.5; // player center
+    return game.cars.find(car => {
+        return car.y === game.player.y &&
+               px > car.x &&
+               px < car.x + car.width;
+    });
+}
+
+// Update all cars: move them and check if player is hit
+function updateCars() {
+    if (game.gameOver) return;
+
+    for (const car of game.cars) {
+        car.x += car.speed * car.direction;
+
+        // Wrap cars around the screen
+        if (car.direction === 1 && car.x >= config.gridWidth) {
+            car.x = -car.width;
+        } else if (car.direction === -1 && car.x + car.width <= 0) {
+            car.x = config.gridWidth;
+        }
+    }
+
+    // If player is on a road row, check car collision
+    const tile = getTileAt(playerTileX(), game.player.y);
+    if (tile && tile.type === 'road') {
+        if (getCarHittingPlayer()) {
+            die();
+        }
+    }
 }
 
 // Update all logs: move them and carry the player if riding one
@@ -276,7 +348,9 @@ function restartGame() {
         highestRow: 0,
         tiles: [],
         logs: [],
+        cars: [],
         waterRows: {},
+        roadRows: {},
         gameOver: false
     };
     document.getElementById('score').textContent = 0;
@@ -318,6 +392,14 @@ function movePlayer(dx, dy) {
     // Water: land on log or die
     if (destTile && destTile.type === 'water') {
         if (!getLogUnderPlayer()) {
+            die();
+            return;
+        }
+    }
+
+    // Road: die if stepping into a car
+    if (destTile && destTile.type === 'road') {
+        if (getCarHittingPlayer()) {
             die();
             return;
         }
@@ -420,6 +502,19 @@ function render() {
         }
     });
 
+    // Draw cars
+    game.cars.forEach(car => {
+        const screenY = (car.y - cameraY) * config.tileSize;
+        if (screenY >= -config.tileSize && screenY <= canvas.height) {
+            const screenX = car.x * config.tileSize;
+            const carW = car.width * config.tileSize;
+
+            // Solid red car
+            ctx.fillStyle = '#761F17';
+            ctx.fillRect(screenX, screenY + 4, carW, config.tileSize - 8);
+        }
+    });
+
     // Draw player
     const playerScreenX = game.player.x * config.tileSize;
     const playerScreenY = (game.player.y - cameraY) * config.tileSize;
@@ -504,6 +599,7 @@ function render() {
 // Game loop
 function gameLoop() {
     updateLogs();
+    updateCars();
     render();
     requestAnimationFrame(gameLoop);
 }

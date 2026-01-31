@@ -45,4 +45,6 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 21. now can you add dark grey blocks that are like grass blocks (you can stand on them) except they only spawn in rows like water blocks. these will be roads
 
-22. 
+22. great, can you copy the logs onto the roads, except make them red, these if you walk into them should kill you
+
+23. getting blocked in, can you make it so rocks can only spawn in 3 consecutive blocks in a row (included screenshot)
