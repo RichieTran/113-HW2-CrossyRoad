@@ -1,0 +1,1 @@
+I wanted to make the basic fundamental aspects of the game first (i.e. movement and grid) then I could update by prompting more.
