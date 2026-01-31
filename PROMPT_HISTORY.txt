@@ -1,1 +1,18 @@
 I wanted to make the basic fundamental aspects of the game first (i.e. movement and grid) then I could update by prompting more.
+I used Claude Code with Sonnet and I made it as a browser game using JavaScript and HTML5
+
+1. i want to create a crossy road/frogger game. We can start off in 2d for now. To start I just want character that can move left, right, and forward (no backwards), and a grid that it can move on that updates when my character moves forward. For example i want one or a few tiles behind it and many tiles ahead, but when i move forward i want the screen to update so that the amount of tiles behind and infront of it stay the same
+
+2. i want more rows ahead than behind, right now it is the opposite (included a screenshot of the current screen)
+
+3. now there is gray in the first few rows of the screen, fix this please (included a screenshot)
+
+4. it fixed it for when i first load in, but now when i move, it comes back (included screenshot)
+
+!!! Switched to Claude Opus model
+
+5. it did not fix, when i move forward it switches to have a gray first few rows (included screenshot)
+
+6.great, now can i have a high score for this session, you can reset it whenever the screen reloads for now. update this when the user beats it. also now can you now make a game over screen for when i die (even though theres no way to die yet) and from that screen it should say "current score: ##" new line "high score: ##" new line "press any key to restart" from that screen when they press any screen it should restart them with a score of 0
+
+7. 
