@@ -10,24 +10,33 @@ const config = {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// Session high score (resets on page reload)
+let highScore = 0;
+
 // Game state
-const game = {
+let game = {
     player: {
-        x: Math.floor(config.gridWidth / 2), // Start in middle horizontally
-        y: 0,  // Starting row
+        x: Math.floor(config.gridWidth / 2),
+        y: 0,
         color: '#e74c3c'
     },
     score: 0,
-    highestRow: 0,  // Track the furthest forward position
-    tiles: []
+    highestRow: 0,
+    tiles: [],
+    gameOver: false
 };
 
 // Tile types with different colors
 const tileTypes = [
     { name: 'grass', color: '#2ecc71', weight: 3 },
-    { name: 'road', color: '#95a5a6', weight: 2 },
+    { name: 'rock', color: '#95a5a6', weight: 2 },
     { name: 'water', color: '#3498db', weight: 1 }
 ];
+
+// Get the tile at a given grid position
+function getTileAt(x, y) {
+    return game.tiles.find(t => t.x === x && t.y === y);
+}
 
 // Initialize the grid with random tiles
 function initializeGrid() {
@@ -38,7 +47,9 @@ function initializeGrid() {
 
     for (let row = startRow; row <= endRow; row++) {
         for (let col = 0; col < config.gridWidth; col++) {
-            const tileType = getRandomTileType();
+            // Ensure player spawn tile is grass
+            const isSpawn = (row === 0 && col === Math.floor(config.gridWidth / 2));
+            const tileType = isSpawn ? tileTypes[0] : getRandomTileType();
             game.tiles.push({
                 x: col,
                 y: row,
@@ -82,8 +93,35 @@ function removeOldTiles() {
     game.tiles = game.tiles.filter(tile => tile.y <= maxRow);
 }
 
+// Kill the player and show game over screen
+function die() {
+    game.gameOver = true;
+    if (game.score > highScore) {
+        highScore = game.score;
+        document.getElementById('highScore').textContent = highScore;
+    }
+}
+
+// Reset game state for a fresh start
+function restartGame() {
+    game = {
+        player: {
+            x: Math.floor(config.gridWidth / 2),
+            y: 0,
+            color: '#e74c3c'
+        },
+        score: 0,
+        highestRow: 0,
+        tiles: [],
+        gameOver: false
+    };
+    document.getElementById('score').textContent = 0;
+    initializeGrid();
+}
+
 // Handle player movement
 function movePlayer(dx, dy) {
+    if (game.gameOver) return;
     const newX = game.player.x + dx;
     const newY = game.player.y + dy;
 
@@ -92,9 +130,21 @@ function movePlayer(dx, dy) {
         return;
     }
 
+    // Check tile at destination
+    const destTile = getTileAt(newX, newY);
+    if (destTile && destTile.type === 'rock') {
+        return; // Can't walk onto rocks
+    }
+
     // Update player position
     game.player.x = newX;
     game.player.y = newY;
+
+    // Die if stepping on water
+    if (destTile && destTile.type === 'water') {
+        die();
+        return;
+    }
 
     // If player moved forward, update score and generate new tiles
     if (dy < 0) {  // Moving forward (negative Y)
@@ -102,6 +152,10 @@ function movePlayer(dx, dy) {
             game.score += 10;
             game.highestRow = game.player.y;
             document.getElementById('score').textContent = game.score;
+            if (game.score > highScore) {
+                highScore = game.score;
+                document.getElementById('highScore').textContent = highScore;
+            }
 
             // Generate new rows ahead (with buffer beyond visible area)
             const maxExistingRow = Math.min(...game.tiles.map(t => t.y));
@@ -121,6 +175,12 @@ function movePlayer(dx, dy) {
 // Keyboard input
 const keys = {};
 document.addEventListener('keydown', (e) => {
+    // If game over, any key restarts
+    if (game.gameOver) {
+        restartGame();
+        return;
+    }
+
     keys[e.key] = true;
 
     // Immediate movement on key press
@@ -200,6 +260,28 @@ function render() {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '12px Arial';
     ctx.fillText(`Row: ${-game.player.y}`, 10, canvas.height - 10);
+
+    // Game over overlay
+    if (game.gameOver) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+
+        ctx.fillStyle = 'white';
+        ctx.font = '28px Arial';
+        ctx.fillText(`Current Score: ${game.score}`, canvas.width / 2, canvas.height / 2);
+        ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 + 40);
+
+        ctx.font = '20px Arial';
+        ctx.fillStyle = '#bdc3c7';
+        ctx.fillText('Press any key to restart', canvas.width / 2, canvas.height / 2 + 100);
+
+        ctx.textAlign = 'start'; // reset alignment
+    }
 }
 
 // Game loop
