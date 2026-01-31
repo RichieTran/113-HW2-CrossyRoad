@@ -41,4 +41,8 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 19. now can you make it so when i move right, left, forward, or backward, the chicken faces that way
 
-20. 
+20. swap the sides of the comb please
+
+21. now can you add dark grey blocks that are like grass blocks (you can stand on them) except they only spawn in rows like water blocks. these will be roads
+
+22. 

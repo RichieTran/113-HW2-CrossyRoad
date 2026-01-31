@@ -33,7 +33,8 @@ let game = {
 const tileTypes = [
     { name: 'grass', color: '#2ecc71', weight: 3 },
     { name: 'rock', color: '#95a5a6', weight: 2 },
-    { name: 'water', color: '#3498db', weight: 1 }
+    { name: 'water', color: '#3498db', weight: 1 },
+    { name: 'road', color: '#4a4a4a', weight: 1 }
 ];
 
 // Get the tile-snapped X position of the player
@@ -57,10 +58,12 @@ function initializeGrid() {
     }
 }
 
-// Pick a row type: 'water' makes a full river, 'land' is a grass/rock mix
+// Pick a row type: 'water' makes a full river, 'road' is a full road, 'land' is a grass/rock mix
 function getRandomRowType() {
-    // ~20% chance of water river row
-    return Math.random() < 0.2 ? 'water' : 'land';
+    const roll = Math.random();
+    if (roll < 0.2) return 'water';
+    if (roll < 0.4) return 'road';
+    return 'land';
 }
 
 // Generate a new row of tiles
@@ -81,13 +84,23 @@ function generateNewRow(rowY) {
     const isSpawnRow = (rowY === 0);
     const isAdjacentToSpawn = (rowY === -1);
 
-    // Prevent consecutive water rows — check if the row behind (rowY+1) is water
-    const prevRowIsWater = game.tiles.some(t => t.y === rowY + 1 && t.type === 'water');
+    // Prevent consecutive water/road rows — check if the row behind (rowY+1) is water or road
+    const prevRowType = game.tiles.find(t => t.y === rowY + 1)?.type;
+    const prevRowIsSpecial = prevRowType === 'water' || prevRowType === 'road';
 
-    // Spawn row and adjacent rows are always land; no back-to-back water rows
-    const rowType = (isSpawnRow || isAdjacentToSpawn || prevRowIsWater) ? 'land' : getRandomRowType();
+    // Spawn row and adjacent rows are always land; no back-to-back water/road rows
+    const rowType = (isSpawnRow || isAdjacentToSpawn || prevRowIsSpecial) ? 'land' : getRandomRowType();
 
-    if (rowType === 'water') {
+    if (rowType === 'road') {
+        // Full road across the entire row
+        const roadType = tileTypes.find(t => t.name === 'road');
+        for (let col = 0; col < config.gridWidth; col++) {
+            game.tiles.push({
+                x: col, y: rowY,
+                type: roadType.name, color: roadType.color
+            });
+        }
+    } else if (rowType === 'water') {
         // Full river across the entire row
         const waterType = tileTypes.find(t => t.name === 'water');
         for (let col = 0; col < config.gridWidth; col++) {
@@ -131,15 +144,15 @@ function generateNewRow(rowY) {
             row[Math.floor(Math.random() * config.gridWidth)] = 'grass';
         }
 
-        // Find the nearest land row behind this one (skip over water rows)
-        // to ensure grass connectivity. Players cross water via logs and can
-        // land at any column, so after water we need wide grass coverage.
+        // Find the nearest land row behind this one (skip over water/road rows)
+        // to ensure grass connectivity. Players cross water via logs and roads
+        // freely, so after those we need wide grass coverage.
         let lookbackY = rowY + 1;
         while (lookbackY <= rowY + 5) {
             const hasTiles = game.tiles.some(t => t.y === lookbackY);
             if (!hasTiles) break;
-            const isWater = game.tiles.some(t => t.y === lookbackY && t.type === 'water');
-            if (!isWater) break;
+            const rowTileType = game.tiles.find(t => t.y === lookbackY)?.type;
+            if (rowTileType !== 'water' && rowTileType !== 'road') break;
             lookbackY++;
         }
 
@@ -449,13 +462,13 @@ function render() {
     ctx.closePath();
     ctx.fill();
 
-    // Red comb on top (behind the chicken, opposite of face)
-    const combY = config.tileSize / 2 - 5;
+    // Red comb on top (on the face side)
+    const combY = -(config.tileSize / 2 - 5);
     ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
-    ctx.arc(-5, combY + 2, 4, 0, Math.PI * 2);
-    ctx.arc(0, combY + 4, 4, 0, Math.PI * 2);
-    ctx.arc(5, combY + 2, 4, 0, Math.PI * 2);
+    ctx.arc(-5, combY - 2, 4, 0, Math.PI * 2);
+    ctx.arc(0, combY - 4, 4, 0, Math.PI * 2);
+    ctx.arc(5, combY - 2, 4, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
