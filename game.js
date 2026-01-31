@@ -18,7 +18,7 @@ let game = {
     player: {
         x: Math.floor(config.gridWidth / 2),
         y: 0,
-        color: '#e74c3c'
+        color: '#ffffff'
     },
     score: 0,
     highestRow: 0,
@@ -255,7 +255,7 @@ function restartGame() {
         player: {
             x: Math.floor(config.gridWidth / 2),
             y: 0,
-            color: '#e74c3c'
+            color: '#ffffff'
         },
         score: 0,
         highestRow: 0,
@@ -305,7 +305,7 @@ function movePlayer(dx, dy) {
     // If player moved forward, update score and generate new tiles
     if (dy < 0) {  // Moving forward (negative Y)
         if (game.player.y < game.highestRow) {
-            game.score += 10;
+            game.score += 1;
             game.highestRow = game.player.y;
             document.getElementById('score').textContent = game.score;
             if (game.score > highScore) {
@@ -393,30 +393,9 @@ function render() {
             const screenX = log.x * config.tileSize;
             const logW = log.width * config.tileSize;
 
-            // Brown log body
+            // Solid brown log
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(screenX, screenY + 4, logW, config.tileSize - 8);
-
-            // Darker bark lines
-            ctx.strokeStyle = '#5C2E00';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < log.width; i++) {
-                const lx = screenX + i * config.tileSize + config.tileSize / 2;
-                ctx.beginPath();
-                ctx.moveTo(lx, screenY + 6);
-                ctx.lineTo(lx, screenY + config.tileSize - 6);
-                ctx.stroke();
-            }
-
-            // Log end caps (circles)
-            ctx.fillStyle = '#A0522D';
-            const capR = (config.tileSize - 8) / 2;
-            ctx.beginPath();
-            ctx.arc(screenX + capR, screenY + config.tileSize / 2, capR, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(screenX + logW - capR, screenY + config.tileSize / 2, capR, 0, Math.PI * 2);
-            ctx.fill();
         }
     });
 
@@ -447,6 +426,27 @@ function render() {
     ctx.beginPath();
     ctx.arc(playerScreenX + config.tileSize / 2 - 8, playerScreenY + config.tileSize / 2 - 5, 1.5, 0, Math.PI * 2);
     ctx.arc(playerScreenX + config.tileSize / 2 + 8, playerScreenY + config.tileSize / 2 - 5, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Yellow beak (triangle between the eyes)
+    const beakCX = playerScreenX + config.tileSize / 2;
+    const beakCY = playerScreenY + config.tileSize / 2;
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.moveTo(beakCX - 4, beakCY - 2);
+    ctx.lineTo(beakCX + 4, beakCY - 2);
+    ctx.lineTo(beakCX, beakCY + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Red comb on top
+    const combCX = playerScreenX + config.tileSize / 2;
+    const combTop = playerScreenY + config.tileSize / 2 - (config.tileSize / 2 - 5);
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(combCX - 5, combTop - 2, 4, 0, Math.PI * 2);
+    ctx.arc(combCX, combTop - 4, 4, 0, Math.PI * 2);
+    ctx.arc(combCX + 5, combTop - 2, 4, 0, Math.PI * 2);
     ctx.fill();
 
     // Draw row indicators (for debugging/visual feedback)

@@ -33,4 +33,10 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 15. still trapped in this situation (included screenshot)
 
-16.
+16. can you make the logs solid brown, i dont want circles or lines on it
+
+17. okay now can you replace my red ball with a white ball, keep the eyes, but add a yellow beak in between the eyes and add a red comb on top too
+
+18. player body turns back to red when i die
+
+19. 
