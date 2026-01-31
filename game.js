@@ -23,6 +23,9 @@ let game = {
     score: 0,
     highestRow: 0,
     tiles: [],
+    logs: [],        // { x: float, y: int, width: int, direction: 1|-1, speed: float }
+    waterRows: {},   // rowY -> { direction, speed } metadata
+    playerDrift: 0,  // fractional drift accumulator when riding a log
     gameOver: false
 };
 
@@ -57,9 +60,21 @@ function getRandomRowType() {
 
 // Generate a new row of tiles
 function generateNewRow(rowY) {
+    // Rows behind spawn (1 to 5) are solid rock walls
+    if (rowY >= 1 && rowY <= 5) {
+        const rockType = tileTypes.find(t => t.name === 'rock');
+        for (let col = 0; col < config.gridWidth; col++) {
+            game.tiles.push({
+                x: col, y: rowY,
+                type: rockType.name, color: rockType.color
+            });
+        }
+        return;
+    }
+
     const spawnX = Math.floor(config.gridWidth / 2);
     const isSpawnRow = (rowY === 0);
-    const isAdjacentToSpawn = (rowY === -1 || rowY === 1);
+    const isAdjacentToSpawn = (rowY === -1);
 
     // Spawn row and adjacent rows are always land (no rivers near spawn)
     const rowType = (isSpawnRow || isAdjacentToSpawn) ? 'land' : getRandomRowType();
@@ -71,6 +86,24 @@ function generateNewRow(rowY) {
             game.tiles.push({
                 x: col, y: rowY,
                 type: waterType.name, color: waterType.color
+            });
+        }
+
+        // Spawn logs for this water row
+        const direction = Math.random() < 0.5 ? 1 : -1;
+        const speed = 0.02 + Math.random() * 0.03; // tiles per frame
+        game.waterRows[rowY] = { direction, speed };
+
+        const logCount = 2 + Math.floor(Math.random() * 3); // 2, 3, or 4
+        const spacing = config.gridWidth / logCount;
+        for (let i = 0; i < logCount; i++) {
+            const logWidth = 2 + Math.floor(Math.random() * 2); // 2 or 3 tiles wide
+            game.logs.push({
+                x: Math.floor(spacing * i + Math.random() * (spacing - logWidth)),
+                y: rowY,
+                width: logWidth,
+                direction,
+                speed
             });
         }
     } else {
@@ -88,6 +121,19 @@ function generateNewRow(rowY) {
         // Guarantee at least 1 grass tile: pick a random column and force it
         if (!row.includes('grass')) {
             row[Math.floor(Math.random() * config.gridWidth)] = 'grass';
+        }
+
+        // Ensure at least one grass tile connects to a grass tile in the previous row (row behind = rowY+1)
+        const prevRowGrass = game.tiles
+            .filter(t => t.y === rowY + 1 && t.type === 'grass')
+            .map(t => t.x);
+        if (prevRowGrass.length > 0) {
+            const hasConnection = prevRowGrass.some(col => row[col] === 'grass');
+            if (!hasConnection) {
+                // Force a random connected column to grass
+                const col = prevRowGrass[Math.floor(Math.random() * prevRowGrass.length)];
+                row[col] = 'grass';
+            }
         }
 
         // Spawn safety: ensure spawn tile and at least one neighbor (left, right, forward) are grass
@@ -110,10 +156,66 @@ function generateNewRow(rowY) {
     }
 }
 
-// Remove old tiles that are too far behind
+// Remove old tiles and logs that are too far behind
 function removeOldTiles() {
     const maxRow = game.player.y + config.tilesBehind + 2;
     game.tiles = game.tiles.filter(tile => tile.y <= maxRow);
+    game.logs = game.logs.filter(log => log.y <= maxRow);
+    // Clean up waterRows metadata
+    for (const rowY in game.waterRows) {
+        if (Number(rowY) > maxRow) delete game.waterRows[rowY];
+    }
+}
+
+// Check if the player is standing on a log
+function getLogUnderPlayer() {
+    return game.logs.find(log => {
+        return log.y === game.player.y &&
+               game.player.x >= Math.floor(log.x) &&
+               game.player.x < Math.floor(log.x) + log.width;
+    });
+}
+
+// Update all logs: move them and carry the player if riding one
+function updateLogs() {
+    if (game.gameOver) return;
+
+    for (const log of game.logs) {
+        log.x += log.speed * log.direction;
+
+        // Wrap logs around the screen
+        if (log.direction === 1 && log.x >= config.gridWidth) {
+            log.x = -log.width;
+        } else if (log.direction === -1 && log.x + log.width <= 0) {
+            log.x = config.gridWidth;
+        }
+    }
+
+    // If player is on a water row, check log status
+    const tile = getTileAt(game.player.x, game.player.y);
+    if (tile && tile.type === 'water') {
+        const log = getLogUnderPlayer();
+        if (log) {
+            // Accumulate fractional drift and move player when it crosses a tile
+            game.playerDrift += log.speed * log.direction;
+            if (Math.abs(game.playerDrift) >= 1) {
+                const shift = Math.sign(game.playerDrift);
+                game.playerDrift -= shift;
+                const newX = game.player.x + shift;
+                if (newX < 0 || newX >= config.gridWidth) {
+                    die();
+                    return;
+                }
+                game.player.x = newX;
+                if (!getLogUnderPlayer()) {
+                    die();
+                }
+            }
+        } else {
+            // In water with no log
+            die();
+        }
+    }
 }
 
 // Kill the player and show game over screen
@@ -136,6 +238,9 @@ function restartGame() {
         score: 0,
         highestRow: 0,
         tiles: [],
+        logs: [],
+        waterRows: {},
+        playerDrift: 0,
         gameOver: false
     };
     document.getElementById('score').textContent = 0;
@@ -163,10 +268,13 @@ function movePlayer(dx, dy) {
     game.player.x = newX;
     game.player.y = newY;
 
-    // Die if stepping on water
+    // Water: die if no log, survive if landing on one
     if (destTile && destTile.type === 'water') {
-        die();
-        return;
+        game.playerDrift = 0; // reset drift when first stepping onto water
+        if (!getLogUnderPlayer()) {
+            die();
+            return;
+        }
     }
 
     // If player moved forward, update score and generate new tiles
@@ -253,6 +361,40 @@ function render() {
         }
     });
 
+    // Draw logs
+    game.logs.forEach(log => {
+        const screenY = (log.y - cameraY) * config.tileSize;
+        if (screenY >= -config.tileSize && screenY <= canvas.height) {
+            const screenX = log.x * config.tileSize;
+            const logW = log.width * config.tileSize;
+
+            // Brown log body
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(screenX, screenY + 4, logW, config.tileSize - 8);
+
+            // Darker bark lines
+            ctx.strokeStyle = '#5C2E00';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < log.width; i++) {
+                const lx = screenX + i * config.tileSize + config.tileSize / 2;
+                ctx.beginPath();
+                ctx.moveTo(lx, screenY + 6);
+                ctx.lineTo(lx, screenY + config.tileSize - 6);
+                ctx.stroke();
+            }
+
+            // Log end caps (circles)
+            ctx.fillStyle = '#A0522D';
+            const capR = (config.tileSize - 8) / 2;
+            ctx.beginPath();
+            ctx.arc(screenX + capR, screenY + config.tileSize / 2, capR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(screenX + logW - capR, screenY + config.tileSize / 2, capR, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+
     // Draw player
     const playerScreenX = game.player.x * config.tileSize;
     const playerScreenY = (game.player.y - cameraY) * config.tileSize;
@@ -312,6 +454,7 @@ function render() {
 
 // Game loop
 function gameLoop() {
+    updateLogs();
     render();
     requestAnimationFrame(gameLoop);
 }

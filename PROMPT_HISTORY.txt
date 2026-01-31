@@ -19,4 +19,12 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 8. great, now can you make it not randomly generated as 1x1s, meaning whenever there is water, the water should make a river from left all the way right. also i make it so rocks can not form around spawn (there should always be atleast one grass block to the left, right, or infront of the spawn block) and there is always at least 1 grass block in a row
 
-9. 
+9. okay now that you can get trapped by rocks, can you add a backwards movement now (down arrow)
+
+10. okay so when i move backwards from spawn there is void nothingness, can you fill this with 5 rows of rocks
+
+11. great, now for the rivers, i want brown logs that float from left to right OR right to left, can i have at most 4 at a time on the screen and at least 2 at a time on screen, make them the same as grass blocks (meaning i can stand on them) but they move
+
+12. it seems that some random rock formations, trap me in, can you make it so there is atleast one grass path that directly connects to a grass of the previous row for every row
+
+13.
