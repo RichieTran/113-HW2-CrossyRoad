@@ -25,7 +25,6 @@ let game = {
     tiles: [],
     logs: [],        // { x: float, y: int, width: int, direction: 1|-1, speed: float }
     waterRows: {},   // rowY -> { direction, speed } metadata
-    playerDrift: 0,  // fractional drift accumulator when riding a log
     gameOver: false
 };
 
@@ -35,6 +34,11 @@ const tileTypes = [
     { name: 'rock', color: '#95a5a6', weight: 2 },
     { name: 'water', color: '#3498db', weight: 1 }
 ];
+
+// Get the tile-snapped X position of the player
+function playerTileX() {
+    return Math.round(game.player.x);
+}
 
 // Get the tile at a given grid position
 function getTileAt(x, y) {
@@ -167,12 +171,13 @@ function removeOldTiles() {
     }
 }
 
-// Check if the player is standing on a log
+// Check if the player is standing on a log (using float positions)
 function getLogUnderPlayer() {
+    const px = game.player.x + 0.5; // player center
     return game.logs.find(log => {
         return log.y === game.player.y &&
-               game.player.x >= Math.floor(log.x) &&
-               game.player.x < Math.floor(log.x) + log.width;
+               px > log.x &&
+               px < log.x + log.width;
     });
 }
 
@@ -192,24 +197,16 @@ function updateLogs() {
     }
 
     // If player is on a water row, check log status
-    const tile = getTileAt(game.player.x, game.player.y);
+    const tile = getTileAt(playerTileX(), game.player.y);
     if (tile && tile.type === 'water') {
         const log = getLogUnderPlayer();
         if (log) {
-            // Accumulate fractional drift and move player when it crosses a tile
-            game.playerDrift += log.speed * log.direction;
-            if (Math.abs(game.playerDrift) >= 1) {
-                const shift = Math.sign(game.playerDrift);
-                game.playerDrift -= shift;
-                const newX = game.player.x + shift;
-                if (newX < 0 || newX >= config.gridWidth) {
-                    die();
-                    return;
-                }
-                game.player.x = newX;
-                if (!getLogUnderPlayer()) {
-                    die();
-                }
+            // Move player smoothly with the log
+            game.player.x += log.speed * log.direction;
+
+            // Die if carried off screen
+            if (game.player.x < -0.5 || game.player.x >= config.gridWidth - 0.5) {
+                die();
             }
         } else {
             // In water with no log
@@ -240,7 +237,6 @@ function restartGame() {
         tiles: [],
         logs: [],
         waterRows: {},
-        playerDrift: 0,
         gameOver: false
     };
     document.getElementById('score').textContent = 0;
@@ -250,7 +246,12 @@ function restartGame() {
 // Handle player movement
 function movePlayer(dx, dy) {
     if (game.gameOver) return;
-    const newX = game.player.x + dx;
+
+    // Snap to nearest tile column, then apply horizontal offset
+    // For vertical moves: snap to whichever tile the majority of the player is on
+    // For horizontal moves: hop one tile from the snapped position
+    const snappedX = playerTileX();
+    const newX = snappedX + dx;
     const newY = game.player.y + dy;
 
     // Check boundaries (left/right)
@@ -264,13 +265,12 @@ function movePlayer(dx, dy) {
         return; // Can't walk onto rocks
     }
 
-    // Update player position
+    // Update player position (snap to integer for non-water tiles)
     game.player.x = newX;
     game.player.y = newY;
 
-    // Water: die if no log, survive if landing on one
+    // Water: land on log or die
     if (destTile && destTile.type === 'water') {
-        game.playerDrift = 0; // reset drift when first stepping onto water
         if (!getLogUnderPlayer()) {
             die();
             return;
