@@ -39,4 +39,6 @@ I used Claude Code with Sonnet and I made it as a browser game using JavaScript 
 
 18. player body turns back to red when i die
 
-19. 
+19. now can you make it so when i move right, left, forward, or backward, the chicken faces that way
+
+20. 

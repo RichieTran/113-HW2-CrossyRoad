@@ -18,7 +18,8 @@ let game = {
     player: {
         x: Math.floor(config.gridWidth / 2),
         y: 0,
-        color: '#ffffff'
+        color: '#ffffff',
+        facing: 'up' // 'up', 'down', 'left', 'right'
     },
     score: 0,
     highestRow: 0,
@@ -255,7 +256,8 @@ function restartGame() {
         player: {
             x: Math.floor(config.gridWidth / 2),
             y: 0,
-            color: '#ffffff'
+            color: '#ffffff',
+            facing: 'up'
         },
         score: 0,
         highestRow: 0,
@@ -271,6 +273,12 @@ function restartGame() {
 // Handle player movement
 function movePlayer(dx, dy) {
     if (game.gameOver) return;
+
+    // Update facing direction
+    if (dx === 1) game.player.facing = 'right';
+    else if (dx === -1) game.player.facing = 'left';
+    else if (dy < 0) game.player.facing = 'up';
+    else if (dy > 0) game.player.facing = 'down';
 
     // Snap to nearest tile column, then apply horizontal offset
     // For vertical moves: snap to whichever tile the majority of the player is on
@@ -402,52 +410,55 @@ function render() {
     // Draw player
     const playerScreenX = game.player.x * config.tileSize;
     const playerScreenY = (game.player.y - cameraY) * config.tileSize;
+    const pcx = playerScreenX + config.tileSize / 2;
+    const pcy = playerScreenY + config.tileSize / 2;
+
+    // Rotate based on facing direction (default "up" = 0)
+    const facingAngles = { up: 0, right: Math.PI / 2, down: Math.PI, left: -Math.PI / 2 };
+    const angle = facingAngles[game.player.facing] || 0;
+
+    ctx.save();
+    ctx.translate(pcx, pcy);
+    ctx.rotate(angle);
 
     // Player body (circle)
     ctx.fillStyle = game.player.color;
     ctx.beginPath();
-    ctx.arc(
-        playerScreenX + config.tileSize / 2,
-        playerScreenY + config.tileSize / 2,
-        config.tileSize / 2 - 5,
-        0,
-        Math.PI * 2
-    );
+    ctx.arc(0, 0, config.tileSize / 2 - 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Player eyes (to show direction)
+    // Player eyes
     ctx.fillStyle = 'white';
     ctx.beginPath();
-    ctx.arc(playerScreenX + config.tileSize / 2 - 8, playerScreenY + config.tileSize / 2 - 5, 3, 0, Math.PI * 2);
-    ctx.arc(playerScreenX + config.tileSize / 2 + 8, playerScreenY + config.tileSize / 2 - 5, 3, 0, Math.PI * 2);
+    ctx.arc(-8, -5, 3, 0, Math.PI * 2);
+    ctx.arc(8, -5, 3, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = 'black';
     ctx.beginPath();
-    ctx.arc(playerScreenX + config.tileSize / 2 - 8, playerScreenY + config.tileSize / 2 - 5, 1.5, 0, Math.PI * 2);
-    ctx.arc(playerScreenX + config.tileSize / 2 + 8, playerScreenY + config.tileSize / 2 - 5, 1.5, 0, Math.PI * 2);
+    ctx.arc(-8, -5, 1.5, 0, Math.PI * 2);
+    ctx.arc(8, -5, 1.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Yellow beak (triangle between the eyes)
-    const beakCX = playerScreenX + config.tileSize / 2;
-    const beakCY = playerScreenY + config.tileSize / 2;
+    // Yellow beak (triangle between the eyes, pointing forward)
     ctx.fillStyle = '#f1c40f';
     ctx.beginPath();
-    ctx.moveTo(beakCX - 4, beakCY - 2);
-    ctx.lineTo(beakCX + 4, beakCY - 2);
-    ctx.lineTo(beakCX, beakCY + 4);
+    ctx.moveTo(-4, -2);
+    ctx.lineTo(4, -2);
+    ctx.lineTo(0, -8);
     ctx.closePath();
     ctx.fill();
 
-    // Red comb on top
-    const combCX = playerScreenX + config.tileSize / 2;
-    const combTop = playerScreenY + config.tileSize / 2 - (config.tileSize / 2 - 5);
+    // Red comb on top (behind the chicken, opposite of face)
+    const combY = config.tileSize / 2 - 5;
     ctx.fillStyle = '#e74c3c';
     ctx.beginPath();
-    ctx.arc(combCX - 5, combTop - 2, 4, 0, Math.PI * 2);
-    ctx.arc(combCX, combTop - 4, 4, 0, Math.PI * 2);
-    ctx.arc(combCX + 5, combTop - 2, 4, 0, Math.PI * 2);
+    ctx.arc(-5, combY + 2, 4, 0, Math.PI * 2);
+    ctx.arc(0, combY + 4, 4, 0, Math.PI * 2);
+    ctx.arc(5, combY + 2, 4, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.restore();
 
     // Draw row indicators (for debugging/visual feedback)
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
